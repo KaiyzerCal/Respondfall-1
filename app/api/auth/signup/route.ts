@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { email, password, businessName, businessPhone, tier } = body;
+  const { email, password, full_name, business_name, business_phone, plan } = body;
 
   if (!email || !password) {
     return NextResponse.json({ error: 'Email and password required' }, { status: 400 });
@@ -18,8 +18,13 @@ export async function POST(req: NextRequest) {
     email,
     password,
     options: {
-      data: { business_name: businessName, business_phone: businessPhone, tier: tier || 'starter' },
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
+      data: {
+        full_name: full_name ?? '',
+        business_name: business_name ?? '',
+        business_phone: business_phone ?? '',
+        tier: plan ?? 'starter',
+      },
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback`,
     },
   });
 
@@ -29,15 +34,16 @@ export async function POST(req: NextRequest) {
 
   if (data.session) {
     const response = NextResponse.json({ ok: true });
-    const isProduction = process.env.NODE_ENV === 'production';
+    const isProd = process.env.NODE_ENV === 'production';
     response.cookies.set('sb-access-token', data.session.access_token, {
-      httpOnly: true, secure: isProduction, sameSite: 'lax', maxAge: 60 * 60 * 24 * 7, path: '/',
+      httpOnly: true, secure: isProd, sameSite: 'lax', maxAge: 60 * 60 * 24 * 7, path: '/',
     });
     response.cookies.set('sb-refresh-token', data.session.refresh_token, {
-      httpOnly: true, secure: isProduction, sameSite: 'lax', maxAge: 60 * 60 * 24 * 30, path: '/',
+      httpOnly: true, secure: isProd, sameSite: 'lax', maxAge: 60 * 60 * 24 * 30, path: '/',
     });
     return response;
   }
 
+  // Email confirmation required — still success
   return NextResponse.json({ ok: true, emailConfirmationRequired: true });
 }
